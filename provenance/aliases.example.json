@@ -1,0 +1,10 @@
+{
+  "_comment": "TEMPLATE for aliases.json (the real file is git-ignored). Copy to aliases.json and fill in real identifiers -> stable codes. Pseudonymization runs at ingest; the real file is the re-identification key, keep it local. See docs/PRIVACY.md.",
+  "version": 1,
+  "aliases": {
+    "Example Person": "[PERSON_1]",
+    "Example Institution": "[ORG_EDU_1]",
+    "Example Collaborator": "[PERSON_COLLABORATOR]",
+    "Synthetic Project Codename": "[PROJ_1]"
+  }
+}

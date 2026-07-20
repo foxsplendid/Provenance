@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Scriptorium Local Conversation Export",
+  "version": "1.0.0",
+  "description": "Exports recent ChatGPT or Claude conversations as a local raw-JSON ZIP after an explicit click.",
+  "action": {
+    "default_title": "Export conversations",
+    "default_popup": "src/popup/popup.html"
+  },
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ],
+      "js": [
+        "src/lib/zip-store.js",
+        "src/lib/export-common.js",
+        "src/content/chatgpt.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://claude.ai/*"
+      ],
+      "js": [
+        "src/lib/zip-store.js",
+        "src/lib/export-common.js",
+        "src/content/claude.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

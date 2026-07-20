@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Export conversations</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <h1>Conversation export</h1>
+      <p id="site" class="site">Open ChatGPT or Claude to export.</p>
+      <form id="export-form">
+        <label for="limit">Recent conversations</label>
+        <input id="limit" name="limit" type="number" min="1" max="100" step="1" value="30" required>
+        <div class="actions">
+          <button id="export" type="submit">Export</button>
+          <button id="cancel" type="button" class="secondary" disabled>Cancel</button>
+        </div>
+      </form>
+      <progress id="progress" max="1" value="0" aria-label="Export progress"></progress>
+      <p id="status" class="status" role="status" aria-live="polite">Ready.</p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

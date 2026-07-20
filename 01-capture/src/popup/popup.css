@@ -1,0 +1,92 @@
+:root {
+  color-scheme: light dark;
+  font: 14px/1.4 system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-width: 300px;
+  background: Canvas;
+  color: CanvasText;
+}
+
+main {
+  padding: 16px;
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.site,
+.status {
+  margin: 0 0 14px;
+  overflow-wrap: anywhere;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid GrayText;
+  border-radius: 5px;
+  background: Field;
+  color: FieldText;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+button {
+  flex: 1;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: #235ee7;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button.secondary {
+  border: 1px solid GrayText;
+  background: transparent;
+  color: CanvasText;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+progress {
+  display: block;
+  width: 100%;
+  height: 10px;
+  margin-bottom: 9px;
+}
+
+.status {
+  min-height: 2.8em;
+  margin-bottom: 0;
+}
+
+.status.error {
+  color: #c62828;
+}
+
+@media (prefers-color-scheme: dark) {
+  .status.error {
+    color: #ff8a80;
+  }
+}

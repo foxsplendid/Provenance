@@ -1,0 +1,23 @@
+{
+  "_comment": "GENERIC default classification rules shipped with the package. Order matters: first matching category wins; coding-agent sources that match nothing fall to 08 (see common.classify_with_fallback). To tailor for yourself, drop a categories.json in your data root ($PROVENANCE_HOME) — it overrides this file entirely (see common.load_categories). Keywords are matched case-insensitively against the title + first user turns; bilingual entries bridge CN/EN.",
+  "default": "00",
+  "default_label": "uncategorized 未分类",
+  "categories": [
+    { "id": "01", "label": "research 科研·学术",
+      "keywords": ["论文", "paper", "文献", "literature", "综述", "review", "实验", "experiment", "数据集", "dataset", "假设", "hypothesis", "期刊", "journal", "投稿", "submission", "引用", "citation", "学术", "research"] },
+    { "id": "02", "label": "data-science 数据科学·机器学习",
+      "keywords": ["机器学习", "machine learning", "深度学习", "deep learning", "模型", "model", "训练", "training", "神经网络", "neural network", "回归", "regression", "分类", "classification", "特征", "feature", "数据分析", "data analysis", "统计", "statistics"] },
+    { "id": "03", "label": "programming 编程·开发",
+      "keywords": ["代码", "code", "bug", "报错", "error", "函数", "function", "算法", "algorithm", "python", "javascript", "typescript", "sql", "调试", "debug", "测试", "unit test", "数据结构", "data structure"] },
+    { "id": "04", "label": "tooling 工具·软件·配置",
+      "keywords": ["git", "docker", "linux", "终端", "terminal", "配置", "config", "vscode", "jupyter", "obsidian", "notion", "插件", "plugin", "nginx", "命令行", "cli", "shell", "powershell", "环境", "environment"] },
+    { "id": "05", "label": "creative 创意·设计·内容",
+      "keywords": ["设计", "design", "游戏", "game", "音乐", "music", "故事", "story", "创意", "creative", "写作", "writing", "视频", "video", "剧本", "script", "ui", "ux", "插画", "art"] },
+    { "id": "06", "label": "career 商业·职业·学习",
+      "keywords": ["创业", "startup", "投资", "invest", "商业", "business", "市场", "market", "求职", "career", "简历", "resume", "教程", "tutorial", "学习", "learning", "课程", "course"] },
+    { "id": "07", "label": "life 生活·杂项",
+      "keywords": ["购物", "shopping", "旅行", "travel", "健康", "health", "美食", "food", "推荐", "recommend", "翻译", "translate", "日常", "生活", "life", "理财", "finance"] },
+    { "id": "08", "label": "AI编程/工程实操",
+      "keywords": ["claude code", "cursor", "codex", "copilot", "coding agent", "agents.md", "scaffold", "脚手架", "重构", "refactor", "实现一个", "implement", "部署", "deploy", "自动化", "automation", "mcp"] }
+  ]
+}

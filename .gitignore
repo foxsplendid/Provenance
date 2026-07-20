@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+# Python
+__pycache__/
+*.pyc
+.venv/
+# Build output
+dist/
+build/
+*.egg-info/
+*.zip
+# Captured conversation data MUST NOT be committed (privacy)
+# Data lives under $PROVENANCE_HOME (default: cwd); all generated artifacts here:
+drop/
+inbox/
+kb/
+memory/
+output/
+_prep/
+profile/
+vault/
+sync-state/
+search-index.db
+provenance/aliases.json
+/categories.json
+captured/
+_raw/
+_attachments/
+*.captured.json
+# Env / secrets
+.env
+.env.*
+*.token
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json
+secrets.json
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+# Local agent and project-governance state
+.claude/
+.agents/
+.codex/
+AGENTS.md
+CLAUDE.md
+AUDIT*.md
+*hook-findings*
+# Local sync-layer config (personal host paths; copy harden/sync-env.example.ps1 -> harden/sync-env.ps1)
+harden/sync-env.ps1
+
+# Private research and export formats
+*.db
+*.sqlite
+*.sqlite3
+*.jsonl
+*.pdf
+*.docx
+*.pptx
+*.xlsx
+*.xls
+*.bib
+*.ris
+*.rdf

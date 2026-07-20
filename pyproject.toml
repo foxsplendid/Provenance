@@ -1,0 +1,75 @@
+# Provenance — packaging.
+# CORE VALUE: ZERO runtime dependencies (pure Python stdlib; no embeddings / vector
+# DB / server). The only environment requirement is SQLite >= 3.34 (bundled with
+# Python >= 3.11) for the FTS5 'trigram' tokenizer used by provenance.search; on
+# older SQLite the index degrades with a loud warning rather than silently.
+#
+# DATA lives outside the package: inbox/, drop/, output/, _prep/, profile/, vault/,
+# search-index.db are resolved under $PROVENANCE_HOME (default: current dir). Run
+# the prov-* commands from your data dir, or set PROVENANCE_HOME.
+# The optional browser exporter under 01-capture is a separate, manually invoked
+# producer outside the wheel; the Python package never discovers, launches, or
+# controls it.
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "provenance"
+version = "0.17.0"
+description = "Local-first pipeline that captures, sanitizes (secret-scrub + pseudonymize), organizes and profiles your cross-AI conversation history into a private second brain."
+requires-python = ">=3.9"
+dependencies = []
+license = { text = "MIT" }
+keywords = ["ai", "second-brain", "privacy", "local-first", "pseudonymization", "chatgpt", "claude", "gemini", "obsidian"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Repository = "https://github.com/foxsplendid/Provenance"
+
+[project.scripts]
+prov-ingest = "provenance.ingest.core:main"
+prov-ingest-takeout = "provenance.ingest.takeout:main"
+prov-ingest-agents = "provenance.ingest.agents:main"
+prov-ingest-library = "provenance.ingest.library:main"
+prov-ingest-vault = "provenance.ingest.vault:main"
+prov-ingest-notes = "provenance.ingest.notes:main"
+prov-ingest-openclaw = "provenance.ingest.openclaw:main"
+prov-scrub = "provenance.ingest.scrub:main"
+prov-watch = "provenance.ingest.watch:main"
+prov-organize = "provenance.organize.core:main"
+prov-prep = "provenance.organize.prep:main"
+prov-diff = "provenance.organize.diff:main"
+prov-obsidian = "provenance.export.obsidian:main"
+prov-search = "provenance.search.core:main"
+prov-mcp = "provenance.mcp_server:main"
+prov-sync = "provenance.sync:main"
+prov-sync-enqueue = "provenance.synclayer.enqueue:main"
+prov-sync-worker = "provenance.synclayer.worker:main"
+prov-sync-pending = "provenance.synclayer.summarize_driver:main"
+prov-sync-fill = "provenance.synclayer.pending_fill:main"
+prov-sync-unresolved = "provenance.synclayer.unresolved:main"
+prov-sync-approve = "provenance.synclayer.approvals:main"
+prov-sync-scan-agents = "provenance.synclayer.scan_agents:main"
+prov-sync-pull = "provenance.synclayer.pull:main"
+prov-status = "provenance.status:main"
+
+[tool.setuptools]
+packages = ["provenance", "provenance.ingest", "provenance.organize", "provenance.export", "provenance.search", "provenance.synclayer"]
+
+[tool.setuptools.package-data]
+provenance = ["categories.json", "aliases.example.json", "synonyms.json"]
+
+[tool.provenance]
+min_sqlite = "3.34"   # for FTS5 trigram (search); degrades with warning otherwise
+test_cmd = "python -m unittest discover -s tests"
+
+[tool.uv]
+required-version = "==0.11.16"
+python-preference = "only-managed"

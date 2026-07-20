@@ -1,0 +1,16 @@
+{
+  "schema_version": "summary-fill/1.0",
+  "timeline": [
+    "implemented the enqueue hook + cwd->project_id resolver",
+    "added the single serializing worker (scaffold -> apply via M1 primitive)",
+    "ran the synclayer test suite, all green"
+  ],
+  "status": "active",
+  "next_actions": [
+    "wire the SessionEnd hook in production settings",
+    "build the M3 approval queue"
+  ],
+  "conclusion": "M2 sync worker spine is in place end-to-end",
+  "blocked_by": "",
+  "confidence": "medium"
+}

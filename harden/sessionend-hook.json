@@ -1,0 +1,18 @@
+{
+  "env": {
+    "PROVENANCE_HOME": "%PROVENANCE_HOME%"
+  },
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"%PROVENANCE_PYTHON%\" -m provenance.synclayer.enqueue"
+          }
+        ]
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,15 @@
+Provenance public source snapshot
+Copyright (c) 2026 foxsplendid
+
+This snapshot distributes the MIT-licensed Provenance Python package,
+documentation, neutral agent Skills, Windows wiring templates, synthetic test
+fixtures, and the independently implemented optional browser exporter under
+01-capture.
+
+The browser exporter contains no vendored JavaScript or third-party runtime
+library. Its deterministic package carries LICENSE and NOTICE. ChatGPT, Claude,
+Chrome, and Edge are trademarks of their respective owners; this project is not
+affiliated with or endorsed by them. Provider internal APIs are undocumented and
+may change.
+
+The installed Python package has no third-party runtime dependencies.

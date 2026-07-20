@@ -1,0 +1,11 @@
+{
+  "name": "scriptorium-local-conversation-export",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Auditable Manifest V3 exporter for user-requested ChatGPT and Claude conversation backups.",
+  "scripts": {
+    "test": "python -B tests/test_extension.py",
+    "pack": "python -B pack.py"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,26 @@
+{
+  "_comment": "Generic query-expansion groups for local lexical search. Terms in a group are OR-ed into the FTS5 query. Users can override this file from their private data root; prov-search --exact disables expansion.",
+  "groups": [
+    ["研究问题", "research question", "RQ"],
+    ["假设", "hypothesis", "hypotheses"],
+    ["证据", "evidence", "supporting evidence"],
+    ["文献综述", "literature review", "survey"],
+    ["知识缺口", "research gap", "knowledge gap"],
+    ["引用", "citation", "reference"],
+    ["可复现性", "reproducibility", "replication"],
+    ["实验设计", "experimental design", "study design"],
+    ["数据集", "dataset", "corpus"],
+    ["基线", "baseline", "benchmark"],
+    ["消融实验", "ablation", "ablation study"],
+    ["校准", "calibration", "calibrate"],
+    ["数据泄漏", "data leakage", "leakage", "data leak"],
+    ["可解释性", "interpretability", "explainability", "XAI"],
+    ["交叉验证", "cross validation", "cross-validation", "CV", "k-fold"],
+    ["机器学习", "machine learning", "ML"],
+    ["深度学习", "deep learning", "neural network", "DNN"],
+    ["大语言模型", "large language model", "LLM"],
+    ["第二大脑", "second brain", "知识管理", "knowledge management", "PKM"],
+    ["汇报", "presentation", "slides", "幻灯片"],
+    ["编程助手", "coding agent", "Claude Code", "Codex", "Cursor"]
+  ]
+}
