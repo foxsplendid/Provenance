@@ -8,16 +8,21 @@ the uncategorized rate, and whether profile / search index exist.
 
 Usage: prov-status        (runs under $PROVENANCE_HOME, default current dir)
 """
+import argparse
 import csv
 import json
-import sys
 from collections import Counter
 
-from provenance import common as C
+from provenance import __version__, common as C
 
 
-def main():
-    C.cli_help(__doc__)
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--version", action="version", version=__version__)
+    parser.parse_args(argv)
     root = C.data_root()
     inbox = root / "inbox"
     print(f"Provenance status — data root: {root}")
