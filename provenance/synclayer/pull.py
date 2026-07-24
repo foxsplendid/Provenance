@@ -447,6 +447,37 @@ def _execute(report, workspace, root, *, run, scan_codex, codex_home, project):
         "ok" if run else "planned",
         {"pending": refresh["pending"]},
     )
+
+    # The portfolio snapshot is ingested before the worker so session resolution
+    # uses a stable view. When this run writes a progress block or applies an
+    # approval, refresh that snapshot before returning so an immediate read-only
+    # context capsule observes the just-completed writeback.
+    if run and (worker_counts["applied"] or checked):
+        try:
+            refreshed_portfolio = vault_ingest.ingest(
+                workspace, root=root, run=True
+            )
+        except (OSError, UnicodeError, ValueError):
+            for stage in report["stages"]:
+                if stage.get("id") == "portfolio":
+                    stage["status"] = "partial"
+                    break
+            _mark(
+                report,
+                "partial",
+                1,
+                "stage_failed",
+                "The project writeback completed but its memory snapshot could not be refreshed.",
+            )
+            return report
+        except Exception:
+            for stage in report["stages"]:
+                if stage.get("id") == "portfolio":
+                    stage["status"] = "error"
+                    break
+            _mark(report, "error", 2, "internal_error", "Pull failed internally.")
+            return report
+        report["summary"]["projects"] = refreshed_portfolio["count"]
     return _finish(report)
 
 

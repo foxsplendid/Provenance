@@ -54,7 +54,7 @@ jobs:
         run: python -B 01-capture/tests/test_extension.py
 
   windows-pull:
-    name: Windows public pull, resolution, and fill safety
+    name: Windows pull, research ingest, and context safety
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -76,6 +76,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & prov-sync-unresolved --help | Out-Null
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & prov-ingest-research --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $contextVersion = & prov-context --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (($contextVersion -join "`n").Trim() -ne '0.18.0') {
+            throw "Unexpected Context Capsule runtime version"
+          }
 
           $raw = & prov-sync-pull --capabilities --json
           $code = $LASTEXITCODE
@@ -98,3 +105,10 @@ jobs:
           }
       - name: Run Windows sync-layer tests
         run: python -m unittest discover -s tests -p "test_synclayer_*.py" -v
+      - name: Run Windows research context tests
+        run: >-
+          python -m unittest
+          tests.test_research_artifacts
+          tests.test_context_capsule
+          tests.test_provenance.TestVaultIngest
+          -v

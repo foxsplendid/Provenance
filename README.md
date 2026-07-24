@@ -38,6 +38,10 @@ the extension.
 - Organizes conversation records, builds deterministic preparation digests,
   exports a Markdown/Obsidian view, and creates a local SQLite FTS5 index.
 - Exposes read-only research context through a stdlib JSON-RPC/MCP server.
+- Ingests validated `parsed-paper/1.0`, `reading-note/1.0`, `review/1.0`, and
+  `lineage-graph/1.0` artifacts through an atomic, lock-protected local merge.
+- Builds a bounded Context Capsule that separates approved project state,
+  auto-applied low-risk progress, and reference-only literature leads.
 - Captures session-closeout events into a local queue and advances them through a
   resumable, lock-protected state machine.
 - Requires a resolved registered project before a scaffold or
@@ -141,14 +145,22 @@ are unofficial and can break independently of Provenance ingestion.
 
 ```powershell
 uv run --locked prov-ingest-library
+uv run --locked prov-ingest-research C:\ScriptoriumDemo\steward-output
 uv run --locked prov-ingest-vault C:\ScriptoriumDemo\workspace
+uv run --locked prov-context --project synthetic-catalyst --json
 uv run --locked prov-search "research gap"
 ```
 
 The default literature input is
 `%PROVENANCE_HOME%\kb\library.json`. The project portfolio comes from the
 workspace's `Projects/` frontmatter. Obsidian is optional; any Markdown workspace
-that follows the same contract can be used.
+that follows the same contract can be used. Research-artifact inputs must be
+explicit files/directories; the command does not discover personal folders or
+persist their source paths. It rejects symbolic links and Windows reparse points
+in every input or output path component, verifies file identity around reads and
+writes, and redacts absolute local paths including
+`file:` URIs while keeping read/write failures path-free. Capsule literature hints remain reference-only until
+the researcher reviews evidence and approves a claim.
 
 ### Read-only MCP
 
@@ -157,8 +169,8 @@ uv run --locked prov-mcp
 ```
 
 The server exposes `search_brain`, `get_profile`, `list_topics`, `get_portfolio`,
-and `get_current_context` over stdio. It performs no network request and does not
-write project state.
+`get_current_context`, and `get_context_capsule` over stdio. It performs no
+network request and does not write project state.
 
 ### Session writeback
 
@@ -203,6 +215,7 @@ mapping. See [the wiring runbook](docs/sync-layer-wiring.md).
 | `prov-ingest-takeout` | Import a selected Google Takeout ZIP |
 | `prov-ingest-agents` | Import supported local coding-agent logs |
 | `prov-ingest-library` | Import a `library-kb/1.x` snapshot |
+| `prov-ingest-research` | Atomically ingest explicit literature-reading artifacts |
 | `prov-ingest-vault` | Import project frontmatter |
 | `prov-ingest-notes` | Import private Markdown zones into protected state |
 | `prov-scrub` | Re-apply the current privacy transform |
@@ -210,6 +223,7 @@ mapping. See [the wiring runbook](docs/sync-layer-wiring.md).
 | `prov-obsidian` | Export a local Markdown/Obsidian view |
 | `prov-search` | Build/query the local FTS5 index |
 | `prov-mcp` | Start the read-only stdio MCP server |
+| `prov-context` | Print one bounded, read-only project Context Capsule |
 | `prov-sync-pull` | Preview or run one lock-protected sync pass |
 | `prov-sync-pending` / `prov-sync-fill` | Review and submit one safe summary fill |
 | `prov-sync-unresolved` | Inspect unresolved mappings without mutation |

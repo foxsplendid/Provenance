@@ -112,6 +112,24 @@ def build(inbox, db=None):
             " ".join(it.get("folders") or []), it.get("readStatus") or ""] if p)
         rows.append((f"lit:{key}", "literature", str(date), "literature", title, body))
         n += 1
+    # Research artifacts are already privacy-sanitized at ingest. Index their
+    # complete contract content so paper sections, reading findings, review gaps
+    # and lineage relations are discoverable through the same local FTS surface.
+    for record in M.load_research_artifacts(inbox.parent):
+        if not isinstance(record, dict) or not isinstance(record.get("content"), dict):
+            continue
+        content = record["content"]
+        artifact_type = record.get("artifact_type") or "research-artifact"
+        artifact_id = record.get("artifact_id") or ""
+        direction = content.get("direction") if isinstance(content.get("direction"), dict) else {}
+        metadata = content.get("metadata") if isinstance(content.get("metadata"), dict) else {}
+        title = (metadata.get("title") or direction.get("query") or content.get("id")
+                 or artifact_id or "(untitled research artifact)")
+        date = content.get("created") or direction.get("created") or ""
+        body = json.dumps(content, ensure_ascii=False, sort_keys=True)
+        rows.append((f"research:{artifact_id}", artifact_type, str(date),
+                     "research-artifact", str(title), body))
+        n += 1
     con.executemany("INSERT INTO conv VALUES (?,?,?,?,?,?)", rows)
     con.commit()
     con.close()

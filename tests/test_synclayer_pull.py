@@ -17,6 +17,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from provenance import memory as M  # noqa: E402
 from provenance.synclayer import approvals, enqueue, paths, progress_log, pull  # noqa: E402
 from provenance.synclayer import scan_agents, worker  # noqa: E402
 
@@ -121,7 +122,7 @@ class PullTest(unittest.TestCase):
         self.assertEqual(report["format_version"], 1)
         self.assertEqual(report["operation"], "pull.capabilities")
         self.assertEqual(
-            report["generated_by"], {"name": "provenance", "version": "0.17.0"}
+            report["generated_by"], {"name": "provenance", "version": "0.18.0"}
         )
         self.assertEqual(report["action_required"], [])
         self.assertEqual(
@@ -175,7 +176,7 @@ class PullTest(unittest.TestCase):
             },
         )
         self.assertEqual(
-            report["generated_by"], {"name": "provenance", "version": "0.17.0"}
+            report["generated_by"], {"name": "provenance", "version": "0.18.0"}
         )
 
     def test_preview_uses_env_fallback_and_writes_no_authoritative_data(self):
@@ -311,6 +312,10 @@ class PullTest(unittest.TestCase):
             note.read_text(encoding="utf-8").count(progress_log.entry_marker(summary_id)),
             1,
         )
+        self.assertIn(
+            "implemented the enqueue hook + cwd->project_id resolver",
+            M.load_projects(self.root)["alpha"]["body"],
+        )
 
         second = pull.run_pull(
             workspace=self.workspace, provenance_home=self.root, run=True
@@ -333,6 +338,10 @@ class PullTest(unittest.TestCase):
         self.assertEqual(third["summary"]["approved"], 1)
         self.assertEqual(third["summary"]["pending_approval"], 0)
         self.assertIn("status: active", note.read_text(encoding="utf-8"))
+        self.assertIn(
+            progress_log.entry_marker(f"{summary_id}#approved"),
+            M.load_projects(self.root)["alpha"]["body"],
+        )
         self.assertNotIn(summary_id, json.dumps(third, ensure_ascii=False))
 
     def test_malformed_jsonl_blocks_before_any_authoritative_write(self):

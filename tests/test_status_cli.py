@@ -24,7 +24,7 @@ class TestStatusCLI(unittest.TestCase):
                     status.main(["--version"])
 
         self.assertEqual(raised.exception.code, 0)
-        self.assertEqual(stdout.getvalue(), "0.17.0\n")
+        self.assertEqual(stdout.getvalue(), "0.18.0\n")
         self.assertEqual(stderr.getvalue(), "")
         data_root.assert_not_called()
 
