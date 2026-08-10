@@ -2,10 +2,10 @@ English | [中文](README.zh.md)
 
 # Provenance
 
-> A local-first memory and evidence bridge for AI-assisted research.
+> A local-first project memory and context bridge for AI-assisted work.
 
-Provenance turns local AI-session records, Markdown project notes, literature
-metadata, and reviewable agent summaries into a searchable, recoverable research
+Provenance turns local AI-session records, Markdown project notes, optional literature
+metadata, and reviewable agent summaries into searchable, recoverable project
 context. It owns the local memory state; Claude Code, Codex, Cursor, and other
 agents are clients of that state rather than its source of truth.
 
@@ -37,7 +37,7 @@ the extension.
   map before records enter the working layer.
 - Organizes conversation records, builds deterministic preparation digests,
   exports a Markdown/Obsidian view, and creates a local SQLite FTS5 index.
-- Exposes read-only research context through a stdlib JSON-RPC/MCP server.
+- Exposes read-only project context through a stdlib JSON-RPC/MCP server.
 - Ingests validated `parsed-paper/1.0`, `reading-note/1.0`, `review/1.0`, and
   `lineage-graph/1.0` artifacts through an atomic, lock-protected local merge.
 - Builds a bounded Context Capsule that separates approved project state,
@@ -62,7 +62,7 @@ Ingest + privacy boundary
   normalize -> secret scrub -> optional pseudonymization
                                |
                                v
-Local research memory
+Local project memory
   inbox | memory | sync-state | SQLite FTS5
             |          |
             |          +-> pending scaffold -> reviewed fill -> timeline/draft

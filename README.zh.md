@@ -2,10 +2,10 @@
 
 # Provenance
 
-> 面向 AI 辅助科研的本地优先记忆与证据桥梁。
+> 面向 AI 辅助长期工作的本地优先项目记忆与上下文桥梁。
 
-Provenance 把本地 AI 会话记录、Markdown 项目笔记、文献元数据与经审阅的
-Agent 摘要，整理成可检索、可恢复、可追溯的科研上下文。它负责持有本地项目
+Provenance 把本地 AI 会话记录、Markdown 项目笔记、可选文献元数据与经审阅的
+Agent 摘要，整理成可检索、可恢复、可追溯的项目上下文。它负责持有本地项目
 记忆；Claude Code、Codex、Cursor 等 Agent 是其客户端，而不是事实源。
 
 Provenance 是 Scriptorium 套件中可独立部署的产品。它通过版本化文件契约与
@@ -30,7 +30,7 @@ Provenance 是 Scriptorium 套件中可独立部署的产品。它通过版本�
 - 提供可选、手动触发的浏览器端生产器，生成兼容的 ChatGPT 与 Claude 会话 ZIP。
 - 在记录进入工作层前擦除常见凭据与 PII 形态，并可应用仅保存在本地的别名表。
 - 生成确定性分类、精读输入、Markdown/Obsidian 视图和本地 SQLite FTS5 索引。
-- 通过标准库实现的只读 JSON-RPC/MCP 服务向 Agent 提供研究上下文。
+- 通过标准库实现的只读 JSON-RPC/MCP 服务向 Agent 提供项目上下文。
 - 通过带锁的原子合并摄取经过验证的 `parsed-paper/1.0`、
   `reading-note/1.0`、`review/1.0` 与 `lineage-graph/1.0` 工件。
 - 生成有长度上限的 Context Capsule，明确区分已批准项目状态、自动写入的
@@ -51,7 +51,7 @@ Provenance 是 Scriptorium 套件中可独立部署的产品。它通过版本�
   规范化 -> 密钥擦洗 -> 可选假名化
                                |
                                v
-本地科研记忆
+本地项目记忆
   inbox | memory | sync-state | SQLite FTS5
             |          |
             |          +-> 待填 scaffold -> 审阅 fill -> timeline/草稿

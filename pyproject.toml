@@ -18,11 +18,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "provenance"
 version = "0.18.0"
-description = "Local-first pipeline that captures, sanitizes (secret-scrub + pseudonymize), organizes and profiles your cross-AI conversation history into a private second brain."
+description = "Local-first project memory and context engine for recoverable, reviewable work across AI agents."
 requires-python = ">=3.9"
 dependencies = []
 license = { text = "MIT" }
-keywords = ["ai", "second-brain", "privacy", "local-first", "pseudonymization", "chatgpt", "claude", "gemini", "obsidian"]
+keywords = ["ai", "project-memory", "context", "privacy", "local-first", "pseudonymization", "chatgpt", "claude", "gemini", "obsidian"]
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",

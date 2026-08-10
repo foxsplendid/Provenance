@@ -496,7 +496,7 @@ def build_capsule(project_id, root=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Print a bounded, read-only research-project context capsule."
+        description="Print a bounded, read-only project context capsule."
     )
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--project", required=True, help="Stable project ID")
