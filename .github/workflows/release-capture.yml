@@ -1,0 +1,43 @@
+name: Publish Capture release asset
+
+permissions:
+  contents: read
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  capture-asset:
+    name: Build and attach Capture
+    if: startsWith(github.event.release.tag_name, 'capture-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Validate the clean-room extension boundary
+        run: python -B 01-capture/tests/test_extension.py
+      - name: Build deterministic Capture archive
+        run: |
+          python -B 01-capture/pack.py
+          archive=$(find 01-capture/dist -maxdepth 1 -type f -name 'scriptorium-local-conversation-export-*.zip' -print -quit)
+          test -n "$archive"
+          version=$(python -c 'import json; print(json.load(open("01-capture/manifest.json", encoding="utf-8"))["version"])')
+          test "${{ github.event.release.tag_name }}" = "capture-v$version"
+          archive_dir=$(dirname "$archive")
+          archive_name=$(basename "$archive")
+          (cd "$archive_dir" && sha256sum "$archive_name" > "$archive_name.sha256")
+      - name: Upload only the allowlisted Capture archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" 01-capture/dist/scriptorium-local-conversation-export-*.zip 01-capture/dist/scriptorium-local-conversation-export-*.sha256

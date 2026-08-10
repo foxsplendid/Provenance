@@ -280,7 +280,8 @@ class TestMCP(unittest.TestCase):
         tl = M.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         names = {t["name"] for t in tl["result"]["tools"]}
         self.assertEqual(names, {"search_brain", "get_profile", "list_topics",
-                                 "get_portfolio", "get_current_context"})
+                                 "get_portfolio", "get_current_context",
+                                 "get_context_capsule"})
         self.assertIsNone(M.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}))
 
     def test_tools_call_get_profile(self):
@@ -599,6 +600,59 @@ class TestVaultIngest(unittest.TestCase):
         self.assertIn("synthetic-xq17-calibration", projects)
         self.assertEqual(projects["synthetic-xq17-calibration"]["next_actions"],
                          ["Review synthetic benchmark results", "Complete synthetic ablation"])
+
+    def test_keeps_recent_progress_beyond_the_short_body_excerpt(self):
+        from provenance.ingest import vault as IV
+        td = tempfile.TemporaryDirectory(); self.addCleanup(td.cleanup)
+        root = Path(td.name)
+        vault = self._vault(root)
+        note = vault / "Projects" / "ml.md"
+        note.write_text(
+            PROJECT_MD
+            + ("Long human context. " * 100)
+            + "\n<!-- scriptorium:progress-log:begin -->\n"
+            + "<!-- entry:synthetic-session -->\n"
+            + "**2100-01-03** - session writeback\n"
+            + "- newest synthetic progress\n"
+            + "<!-- scriptorium:progress-log:end -->\n",
+            encoding="utf-8",
+        )
+
+        IV.ingest(vault, root=root, run=True)
+        project = C_mem.load_projects(root)["synthetic-xq17-calibration"]
+
+        self.assertNotIn("newest synthetic progress", project["body"])
+        self.assertIn("newest synthetic progress", project["_progress_log"])
+
+    def test_progress_excerpt_keeps_newest_complete_entries(self):
+        from provenance.ingest import vault as IV
+
+        newest = (
+            "\n<!-- entry:newest -->\n"
+            "**2100-01-03** - session writeback\n"
+            "- newest synthetic progress\n"
+        )
+        old_blocks = "".join(
+            "<!-- entry:old-{index} -->\n"
+            "**2099-01-01** - session writeback\n"
+            "- old synthetic progress {index} {padding}\n".format(
+                index=index,
+                padding="x" * 500,
+            )
+            for index in range(10)
+        )
+        excerpt = IV._progress_excerpt(
+            IV.PROGRESS_BEGIN + newest + old_blocks + IV.PROGRESS_END
+        )
+
+        self.assertLessEqual(
+            len(excerpt) - len(IV.PROGRESS_BEGIN) - len(IV.PROGRESS_END),
+            IV.PROGRESS_CHARS,
+        )
+        self.assertIn("<!-- entry:newest -->", excerpt)
+        self.assertIn("newest synthetic progress", excerpt)
+        self.assertNotIn("<!-- entry:old-9 -->", excerpt)
+        self.assertTrue(excerpt.rstrip().endswith(IV.PROGRESS_END))
 
 
 class TestSearchLiterature(unittest.TestCase):

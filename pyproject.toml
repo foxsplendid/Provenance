@@ -17,12 +17,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "provenance"
-version = "0.17.0"
-description = "Local-first pipeline that captures, sanitizes (secret-scrub + pseudonymize), organizes and profiles your cross-AI conversation history into a private second brain."
+version = "0.18.0"
+description = "Local-first project memory and context engine for recoverable, reviewable work across AI agents."
 requires-python = ">=3.9"
 dependencies = []
 license = { text = "MIT" }
-keywords = ["ai", "second-brain", "privacy", "local-first", "pseudonymization", "chatgpt", "claude", "gemini", "obsidian"]
+keywords = ["ai", "project-memory", "context", "privacy", "local-first", "pseudonymization", "chatgpt", "claude", "gemini", "obsidian"]
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -38,6 +38,7 @@ prov-ingest = "provenance.ingest.core:main"
 prov-ingest-takeout = "provenance.ingest.takeout:main"
 prov-ingest-agents = "provenance.ingest.agents:main"
 prov-ingest-library = "provenance.ingest.library:main"
+prov-ingest-research = "provenance.ingest.research:main"
 prov-ingest-vault = "provenance.ingest.vault:main"
 prov-ingest-notes = "provenance.ingest.notes:main"
 prov-ingest-openclaw = "provenance.ingest.openclaw:main"
@@ -59,6 +60,7 @@ prov-sync-approve = "provenance.synclayer.approvals:main"
 prov-sync-scan-agents = "provenance.synclayer.scan_agents:main"
 prov-sync-pull = "provenance.synclayer.pull:main"
 prov-status = "provenance.status:main"
+prov-context = "provenance.context:main"
 
 [tool.setuptools]
 packages = ["provenance", "provenance.ingest", "provenance.organize", "provenance.export", "provenance.search", "provenance.synclayer"]

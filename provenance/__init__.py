@@ -1,4 +1,6 @@
-"""Provenance — local-first capture/sanitize/organize/profile pipeline for your
-cross-AI conversation history. See docs/SPEC.md and docs/PRIVACY.md."""
+"""Local-first project memory and context across AI agents.
 
-__version__ = "0.17.0"
+See docs/SPEC.md and docs/PRIVACY.md for the data and trust boundaries.
+"""
+
+__version__ = "0.18.0"

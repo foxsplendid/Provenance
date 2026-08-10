@@ -2,10 +2,10 @@
 
 # Provenance
 
-> 面向 AI 辅助科研的本地优先记忆与证据桥梁。
+> 面向 AI 辅助长期工作的本地优先项目记忆与上下文桥梁。
 
-Provenance 把本地 AI 会话记录、Markdown 项目笔记、文献元数据与经审阅的
-Agent 摘要，整理成可检索、可恢复、可追溯的科研上下文。它负责持有本地项目
+Provenance 把本地 AI 会话记录、Markdown 项目笔记、可选文献元数据与经审阅的
+Agent 摘要，整理成可检索、可恢复、可追溯的项目上下文。它负责持有本地项目
 记忆；Claude Code、Codex、Cursor 等 Agent 是其客户端，而不是事实源。
 
 Provenance 是 Scriptorium 套件中可独立部署的产品。它通过版本化文件契约与
@@ -30,7 +30,11 @@ Provenance 是 Scriptorium 套件中可独立部署的产品。它通过版本�
 - 提供可选、手动触发的浏览器端生产器，生成兼容的 ChatGPT 与 Claude 会话 ZIP。
 - 在记录进入工作层前擦除常见凭据与 PII 形态，并可应用仅保存在本地的别名表。
 - 生成确定性分类、精读输入、Markdown/Obsidian 视图和本地 SQLite FTS5 索引。
-- 通过标准库实现的只读 JSON-RPC/MCP 服务向 Agent 提供研究上下文。
+- 通过标准库实现的只读 JSON-RPC/MCP 服务向 Agent 提供项目上下文。
+- 通过带锁的原子合并摄取经过验证的 `parsed-paper/1.0`、
+  `reading-note/1.0`、`review/1.0` 与 `lineage-graph/1.0` 工件。
+- 生成有长度上限的 Context Capsule，明确区分已批准项目状态、自动写入的
+  低风险进度，以及仅供参考的文献线索。
 - 将会话收尾事件写入本地队列，并通过可恢复、带锁的状态机推进。
 - 项目未解析时不生成 scaffold、timeline、draft 或 `session-summary/1.0`。
 - 高价值状态与结论先进入草稿，必须由用户审批后才能写回。
@@ -47,7 +51,7 @@ Provenance 是 Scriptorium 套件中可独立部署的产品。它通过版本�
   规范化 -> 密钥擦洗 -> 可选假名化
                                |
                                v
-本地科研记忆
+本地项目记忆
   inbox | memory | sync-state | SQLite FTS5
             |          |
             |          +-> 待填 scaffold -> 审阅 fill -> timeline/草稿
@@ -126,13 +130,20 @@ Provider 内部接口并非公开契约，可能独立于 Provenance 摄取端�
 
 ```powershell
 uv run --locked prov-ingest-library
+uv run --locked prov-ingest-research C:\ScriptoriumDemo\steward-output
 uv run --locked prov-ingest-vault C:\ScriptoriumDemo\workspace
+uv run --locked prov-context --project synthetic-catalyst --json
 uv run --locked prov-search "research gap"
 ```
 
 默认文献输入为 `%PROVENANCE_HOME%\kb\library.json`；项目组合来自工作区
 `Projects/` 的 frontmatter。Obsidian 是可选示例，符合相同契约的 Markdown
-工作区也可以使用。
+工作区也可以使用。科研工件必须由用户显式指定文件或目录；命令不会发现个人
+文件夹，也不会保存输入路径；输入和输出路径任一层级中的符号链接、Junction 与
+Windows 重解析点都会被拒绝，读写前后还会核对文件身份，
+包括 `file:` URI 在内的绝对本地路径会被脱敏，读写失败也不会回显本地路径。
+Capsule 中的文献提示在研究者核对证据并批准
+论断前始终只是参考线索。
 
 ### 只读 MCP
 
@@ -141,7 +152,8 @@ uv run --locked prov-mcp
 ```
 
 服务通过 stdio 暴露 `search_brain`、`get_profile`、`list_topics`、
-`get_portfolio` 与 `get_current_context`，不发起网络请求，也不写项目状态。
+`get_portfolio`、`get_current_context` 与 `get_context_capsule`，不发起网络请求，
+也不写项目状态。
 
 ### 会话回写
 
@@ -185,6 +197,7 @@ uv run --locked prov-sync-fill <summary-id> --provenance-home $env:PROVENANCE_HO
 | `prov-ingest-takeout` | 摄取用户选择的 Google Takeout ZIP |
 | `prov-ingest-agents` | 摄取受支持的本地编程 Agent 日志 |
 | `prov-ingest-library` | 摄取 `library-kb/1.x` 快照 |
+| `prov-ingest-research` | 原子摄取显式选择的文献阅读工件 |
 | `prov-ingest-vault` | 摄取项目 frontmatter |
 | `prov-ingest-notes` | 将私人 Markdown 区域摄取进受保护状态 |
 | `prov-scrub` | 对既有记录重跑当前隐私转换 |
@@ -192,6 +205,7 @@ uv run --locked prov-sync-fill <summary-id> --provenance-home $env:PROVENANCE_HO
 | `prov-obsidian` | 导出本地 Markdown/Obsidian 视图 |
 | `prov-search` | 构建或查询本地 FTS5 索引 |
 | `prov-mcp` | 启动只读 stdio MCP 服务 |
+| `prov-context` | 输出一个有边界、只读的项目 Context Capsule |
 | `prov-sync-pull` | 预览或执行一次带锁同步 |
 | `prov-sync-pending` / `prov-sync-fill` | 审阅并提交一个安全摘要 fill |
 | `prov-sync-unresolved` | 只读检查未解析映射 |

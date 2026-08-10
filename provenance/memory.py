@@ -11,9 +11,10 @@ sanitized snapshots live under `$PROVENANCE_HOME/memory/`:
 
     memory/library.json      reference library snapshot (literature)
     memory/projects.json     project portfolio (project/1.0 frontmatter)
+    memory/research-artifacts.json  parsed papers, reading notes, reviews, lineage
 
-Written by the ingesters (provenance.ingest.library / .vault); read by the
-read-only MCP tools (get_portfolio / get_current_context) and by search indexing.
+Written by the library, vault and research-artifact ingesters; read by the
+read-only MCP tools, Context Capsule builder and search indexing.
 Stdlib only, no network — same privacy posture as the rest of the pipeline.
 
 Also home to a minimal YAML-frontmatter parser (a stdlib subset, NOT PyYAML) so
@@ -28,6 +29,7 @@ from provenance import common as C
 LIBRARY = "library.json"
 PROJECTS = "projects.json"
 APPLIED_CLAIMS = "applied_claims.json"   # sync-layer M3 approved high-value claims
+RESEARCH_ARTIFACTS = "research-artifacts.json"
 
 # high-value claim fields an approved session-summary overlays onto a project record
 APPLIED_FIELDS = ("status", "stage", "next_actions", "conclusion", "blocked_by")
@@ -49,6 +51,17 @@ def load_library(root=None):
     """Return the list of reference-library items (empty if not ingested)."""
     items = _read(mem_dir(root) / LIBRARY).get("items")
     return items if isinstance(items, list) else []
+
+
+def load_research_artifacts(root=None):
+    """Return sanitized literature-research artifact records, or an empty list.
+
+    Each record contains ``artifact_id``, ``artifact_type``, ``schema_version``
+    and the original contract object under ``content``. The research ingester
+    guarantees stable IDs, path removal and privacy sanitization before write.
+    """
+    artifacts = _read(mem_dir(root) / RESEARCH_ARTIFACTS).get("artifacts")
+    return artifacts if isinstance(artifacts, list) else []
 
 
 def load_applied_claims(root=None):

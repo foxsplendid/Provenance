@@ -15,6 +15,7 @@ Tools (all read the LOCAL pseudonymized data under $PROVENANCE_HOME):
   - list_topics()               category counts from the organize catalog
   - get_portfolio()             the research portfolio (总纲): projects + stage + next steps
   - get_current_context(project_id)  one project's literature + status
+  - get_context_capsule(project_id)  bounded, approval-aware resume context
 
 Register (Claude Code example, run from your data dir or set PROVENANCE_HOME):
   claude mcp add provenance -- prov-mcp
@@ -26,10 +27,10 @@ import re
 import sys
 from collections import Counter
 
-from provenance import common as C, memory as M
+from provenance import common as C, context as CX, memory as M
 from provenance.search import core as S
 
-VERSION = "0.17.0"
+VERSION = "0.18.0"
 PROTOCOL = "2024-11-05"
 
 TOOLS = [
@@ -50,6 +51,11 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {}}},
     {"name": "get_current_context",
      "description": "A single project's working context: its linked literature and latest status / next actions. Call when starting work on a project to load what the user is reading and doing.",
+     "inputSchema": {"type": "object",
+                     "properties": {"project_id": {"type": "string"}},
+                     "required": ["project_id"]}},
+    {"name": "get_context_capsule",
+     "description": "A bounded, read-only resume capsule for one project. Human/approved state is authoritative; literature artifact leads are explicitly reference-only.",
      "inputSchema": {"type": "object",
                      "properties": {"project_id": {"type": "string"}},
                      "required": ["project_id"]}},
@@ -183,8 +189,19 @@ def _get_current_context(args):
     return "\n".join(out)
 
 
+def _get_context_capsule(args):
+    pid = (args.get("project_id") or "").strip()
+    if not pid:
+        return "Provide a 'project_id' (see get_portfolio)."
+    try:
+        return CX.render_markdown(CX.build_capsule(pid))
+    except CX.ProjectNotFoundError as exc:
+        return str(exc)
+
+
 HANDLERS = {"search_brain": _search_brain, "get_profile": _get_profile, "list_topics": _list_topics,
-            "get_portfolio": _get_portfolio, "get_current_context": _get_current_context}
+            "get_portfolio": _get_portfolio, "get_current_context": _get_current_context,
+            "get_context_capsule": _get_context_capsule}
 
 
 def handle(req):

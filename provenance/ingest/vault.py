@@ -26,6 +26,7 @@ Usage:
 """
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +37,47 @@ from provenance.redact import sanitize_json
 # project notes can carry sensitive decisions in the body; keep a short,
 # sanitized excerpt for "latest status" context without storing the whole log.
 BODY_CHARS = 800
+PROGRESS_CHARS = 4000
+PROGRESS_BEGIN = "<!-- scriptorium:progress-log:begin -->"
+PROGRESS_END = "<!-- scriptorium:progress-log:end -->"
+PROGRESS_ENTRY_RE = re.compile(r"<!--\s*entry:[^>\r\n]+-->")
+
+
+def _progress_excerpt(body):
+    """Keep the newest generated progress separately from the short body excerpt."""
+    begin = body.find(PROGRESS_BEGIN)
+    if begin < 0:
+        return ""
+    end = body.find(PROGRESS_END, begin + len(PROGRESS_BEGIN))
+    if end < 0:
+        return ""
+    region = body[begin + len(PROGRESS_BEGIN):end]
+    if len(region) > PROGRESS_CHARS:
+        matches = list(PROGRESS_ENTRY_RE.finditer(region))
+        if not matches:
+            region = region[:PROGRESS_CHARS]
+        else:
+            prefix = region[:matches[0].start()]
+            blocks = []
+            used = len(prefix)
+            for index, match in enumerate(matches):
+                block_end = (
+                    matches[index + 1].start()
+                    if index + 1 < len(matches)
+                    else len(region)
+                )
+                block = region[match.start():block_end]
+                if used + len(block) > PROGRESS_CHARS:
+                    break
+                blocks.append(block)
+                used += len(block)
+            if blocks:
+                region = prefix + "".join(blocks)
+            else:
+                # A single pathological entry may exceed the bound. Keep its
+                # newest prefix instead of retaining older entries from the tail.
+                region = region[:PROGRESS_CHARS]
+    return f"{PROGRESS_BEGIN}{region}{PROGRESS_END}"
 
 
 def _collect(note_dir, glob, schema, id_field):
@@ -60,6 +102,9 @@ def _collect(note_dir, glob, schema, id_field):
         excerpt = C.clip(body, BODY_CHARS)
         if excerpt:
             rec["body"] = excerpt
+        progress_excerpt = _progress_excerpt(body)
+        if progress_excerpt:
+            rec["_progress_log"] = progress_excerpt
         rec["_source_file"] = md.name
         out[str(rid)] = sanitize_json(rec)
     return out

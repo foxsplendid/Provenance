@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Public living contract |
-| Product version | 0.17.0 |
+| Product version | 0.18.0 |
 | Runtime | Python standard library |
 | Primary release target | Windows 10/11 |
 | Data root | `PROVENANCE_HOME` |
@@ -27,8 +27,9 @@ Included:
 
 - installable `provenance` Python package;
 - local ingestion, privacy transforms, organization, search, Markdown export;
-- literature and project-memory ingestion;
-- read-only stdio MCP server;
+- literature, literature-reading artifact, and project-memory ingestion;
+- bounded project Context Capsules through the CLI and read-only stdio MCP
+  server;
 - event/sync queue, resolver, worker, pending/fill boundary, approvals;
 - optional clean-room browser producer under `01-capture/`;
 - neutral `skills/`, Windows wiring templates, synthetic tests.
@@ -52,7 +53,7 @@ PROVENANCE_HOME/
   inbox/          normalized working records and raw ZIP backup
   drop/           optional user-selected import queue
   kb/             versioned literature input
-  memory/         project, literature and approved-claim snapshots
+  memory/         project, literature, research-artifact and approved-claim snapshots
   output/         deterministic organization views
   _prep/          deterministic Skill inputs
   profile/        local profile artifacts
@@ -107,6 +108,74 @@ through the text redactor.
 
 RAG/search results and Agent-generated summaries are candidates, not accepted
 research facts.
+
+### 6.1 Research-artifact ingestion
+
+`prov-ingest-research` accepts only user-supplied files and directories. It does
+not discover personal folders, modify source files, or retain source paths. The
+0.18.0 implementation consumes exactly these scriptorium-spec contracts:
+
+- `parsed-paper/1.0`;
+- `reading-note/1.0`;
+- `review/1.0`;
+- `lineage-graph/1.0`.
+
+All selected inputs are validated and sanitized before one deterministic merge
+into `memory/research-artifacts.json`. Records receive stable content identities;
+the load-merge-write transaction is protected by a kernel-backed lock, uses an
+atomic replacement, and is idempotent for unchanged records.
+
+Parsed-paper and reading-note identities preserve the exact Better BibTeX
+citekey. Review and lineage identities include their `created` value, so a later
+snapshot of the same direction is retained while the same direction and
+timestamp remain idempotent.
+
+Input traversal and the destination store boundary fail closed when any path
+component is a symbolic link, junction or Windows reparse point, including
+ancestors and nested entries. Input bytes are read from one verified file
+descriptor and file identity is checked before and after the read. The target
+and kernel-lock identities are rechecked around the load-merge-write transaction.
+Absolute Windows, UNC and POSIX paths and `file:` URIs are redacted before
+persistence and search indexing. Read, parse, lock and write failures return
+bounded messages that do not echo source or destination paths.
+
+### 6.2 Context Capsule
+
+`prov-context --project PROJECT_ID` and MCP `get_context_capsule` return the same
+deterministic, read-only project resume view. The capsule:
+
+- reads human-authored project fields and explicitly approved claims as project
+  state;
+- includes recent auto-applied timeline entries only as low-risk progress, not
+  approved claims;
+- includes related literature-reading artifacts and their gap/priority-reading
+  leads only as reference material, not approved claims;
+- excludes raw conversations, pending drafts, rejected claims, source-path
+  fields and unrelated research artifacts;
+- omits absolute local paths from all returned text;
+- is bounded to 8,000 characters in Markdown and 20,000 characters in the JSON
+  envelope, with explicit truncation metadata.
+
+The trust envelope is part of the public output:
+
+```json
+{
+  "project_state": "human_or_approved",
+  "recent_progress": "auto_applied_low_risk_not_approved_claims",
+  "research_artifacts": "reference_only_not_approved_claims"
+}
+```
+
+Neither the CLI nor the MCP method mutates project or memory state.
+
+### 6.3 Reserved future contracts
+
+Provenance 0.18.0 does not consume `experiment-run/1.0` or
+`claim-evidence/1.0`. Publishing those formats in scriptorium-spec is a
+prerequisite, not an implementation in Provenance: a later Provenance release
+must still add explicit validation, trust semantics and tests. In 0.18.0,
+`prov-ingest-research` rejects them as unsupported schema versions; no
+documentation or Context Capsule output may imply otherwise.
 
 ## 7. Event/sync state machine
 
@@ -200,5 +269,5 @@ quick_validate.py skills/session-summary
 ```
 
 Linux and Windows run the extension boundary tests. Linux runs the full Python
-suite; Windows additionally exercises lock, reparse-point, pending/fill and public
-pull behavior.
+suite; Windows additionally exercises lock, reparse-point, research-artifact
+ingestion, Context Capsule, pending/fill and public pull behavior.

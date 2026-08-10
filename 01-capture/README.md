@@ -12,6 +12,15 @@ The extension runs an export only after the user opens the popup and clicks **Ex
 4. Open an authenticated `chatgpt.com`, `chat.openai.com`, or `claude.ai` tab.
 5. Open the extension popup, select a count from 1 to 100, and click **Export**.
 
+For a dedicated Capture release such as `capture-v1.0.0`, users who need only
+this exporter can download the versioned
+`scriptorium-local-conversation-export-*.zip` release asset. Unzip that asset and
+load the resulting directory as described above; the Provenance Python package
+and the rest of the repository are not required for this workflow.
+Download the adjacent `.sha256` file as well and verify the archive before
+unpacking it. The checksum uses only the ZIP basename, so `sha256sum -c` works
+when both downloaded files are in the same directory.
+
 The popup reports list/detail progress and provides a cancel button. Cancellation aborts the active same-origin request. If ZIP computation has already started, the extension finishes that in-memory computation, yields to process the cancellation, and checks again before starting any download.
 
 ## API adapters
