@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="620" viewBox="0 0 1280 620" role="img" aria-labelledby="title desc">
+  <title id="title">Provenance memory loop</title>
+  <desc id="desc">Provenance captures local work, organizes it, exposes context, and writes back only reviewable project memory.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0c1b2a"/><stop offset="1" stop-color="#052e2b"/></linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M2,2 L10,6 L2,10 Z" fill="#2dd4bf"/></marker>
+    <style>.title{font:700 42px ui-sans-serif,system-ui;fill:#ecfeff}.sub{font:500 19px ui-sans-serif,system-ui;fill:#a7f3d0}.box{fill:#0f172a;stroke:#155e75;stroke-width:1.5;rx:24}.label{font:700 21px ui-sans-serif,system-ui;fill:#ccfbf1}.body{font:500 15px ui-sans-serif,system-ui;fill:#cbd5e1}.small{font:600 13px ui-sans-serif,system-ui;fill:#5eead4}.arrow{stroke:#2dd4bf;stroke-width:4;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1280" height="620" fill="url(#bg)"/>
+  <text x="70" y="76" class="title">Provenance</text><text x="70" y="110" class="sub">Local project memory for AI-assisted work that must be recoverable and reviewable.</text>
+  <rect x="90" y="220" width="210" height="116" class="box"/><text x="124" y="263" class="label">Capture</text><text x="124" y="295" class="body">local logs, chats, notes</text>
+  <rect x="380" y="120" width="210" height="116" class="box"/><text x="414" y="163" class="label">Ingest</text><text x="414" y="195" class="body">normalize without publishing</text>
+  <rect x="690" y="120" width="210" height="116" class="box"/><text x="724" y="163" class="label">Organize</text><text x="724" y="195" class="body">index, scrub, deduplicate</text>
+  <rect x="980" y="220" width="210" height="116" class="box"/><text x="1014" y="263" class="label">Resume</text><text x="1014" y="295" class="body">serve context capsules</text>
+  <rect x="690" y="390" width="210" height="116" class="box"/><text x="724" y="433" class="label">Review</text><text x="724" y="465" class="body">Approvals.md stays human-led</text>
+  <rect x="380" y="390" width="210" height="116" class="box"/><text x="414" y="433" class="label">Writeback</text><text x="414" y="465" class="body">append-only project memory</text>
+  <path d="M300 250 C335 220 345 190 380 178" class="arrow"/><path d="M590 178 L690 178" class="arrow"/><path d="M900 178 C945 190 955 220 980 250" class="arrow"/><path d="M1085 336 C1060 412 975 448 900 448" class="arrow"/><path d="M690 448 L590 448" class="arrow"/><path d="M380 448 C310 420 260 372 230 336" class="arrow"/>
+  <text x="70" y="566" class="small">Raw material, AI inference, and user-confirmed memory remain separate.</text>
+</svg>
