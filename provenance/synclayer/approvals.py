@@ -57,16 +57,34 @@ QUEUE_FILENAME = "Approvals.md"
 # render/parse order; map 1:1 to the gated high-value claims (session-summary/1.0).
 # stage is FREE-TEXT (no enum), unlike status — never enum-validated on commit.
 HIGH_VALUE_FIELDS = ("status", "stage", "next_actions", "conclusion", "blocked_by")
+EVIDENCE_FIELDS = ("decision", "superseded_by")
+EVIDENCE_DECISIONS = frozenset({"pending", "accepted", "rejected", "superseded"})
 NA_SEP = " | "                                        # next_actions separator in the note
+DISPLAY_LIMIT = 240
+_MARKDOWN_DISPLAY_TRANSLATION = str.maketrans({
+    "\\": "／",
+    "`": "ˋ",
+    "*": "∗",
+    "_": "＿",
+    "[": "［",
+    "]": "］",
+    "<": "‹",
+    ">": "›",
+    "#": "＃",
+})
 
 _CHECKBOX_RE = re.compile(r"-\s*\[([ xX])\]\s*(.*)$")
 _FIELD_RE = re.compile(r"-\s*([a-z_]+):\s*(.*)$")
 _DRAFT_RE = re.compile(r"<!-- draft:(.+?) -->")
+_EVIDENCE_RE = re.compile(r"<!-- evidence:(.+):([a-f0-9]{64}) -->$")
+_APPROVE_ALL_RE = re.compile(r"^\*\*APPROVE ALL\*\*\s+pending (?:session writebacks|items) below$")
 
 _INSTRUCTIONS = (
     "Tick a box and **save**, then rerun the same pull command with `--run` (approves + refreshes). You may edit any\n"
     "proposed value before approving. Plugin-free: plain `- [ ]` checkboxes only.\n"
-    f"Separate multiple next actions with `{NA_SEP.strip()}`."
+    f"Separate multiple next actions with `{NA_SEP.strip()}`. `APPROVE ALL` applies only to session writebacks.\n"
+    "Evidence candidates require an individual human decision. Agents may prepare this queue, but must never tick\n"
+    "an evidence box or choose a decision on the user's behalf."
 )
 
 
@@ -78,12 +96,41 @@ def draft_marker(summary_id):
     return f"<!-- draft:{summary_id} -->"
 
 
+def evidence_marker(claim_id, source_fingerprint):
+    return f"<!-- evidence:{claim_id}:{source_fingerprint} -->"
+
+
 def _now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
 def _box(checked):
     return "x" if checked else " "
+
+
+def _display_text(value, *, limit=DISPLAY_LIMIT):
+    """Return bounded, single-line, non-structural text for the human review UI."""
+    if not isinstance(value, str):
+        return ""
+    flattened = "".join(
+        " " if char.isspace() else char
+        for char in value
+        if char.isprintable() or char.isspace()
+    )
+    text = " ".join(flattened.split()).translate(_MARKDOWN_DISPLAY_TRANSLATION)
+    if len(text) > limit:
+        text = text[:limit - 3].rstrip() + "..."
+    return text
+
+
+def _evidence_summary(content):
+    links = content.get("evidence")
+    links = links if isinstance(links, list) else []
+    kinds = sorted({
+        _display_text(link.get("source_type"), limit=40)
+        for link in links if isinstance(link, dict) and link.get("source_type")
+    })
+    return _display_text(f"{len(links)} ({', '.join(kinds) or 'none'})", limit=120)
 
 
 # --- draft selection --------------------------------------------------------
@@ -133,17 +180,51 @@ def _sorted_items(pending):
                   key=lambda kv: (kv[1].get("created") or "", kv[0]), reverse=True)
 
 
+def _pending_evidence(root):
+    """Strict candidate Claim records keyed by claim ID."""
+    return {record["claim_id"]: record for record in M.load_candidate_claims(root)}
+
+
+def _sorted_evidence_items(pending):
+    """Candidate pairs, newest source content first and stable by claim ID."""
+    return sorted(
+        pending.items(),
+        key=lambda kv: (kv[1]["content"].get("created") or "", kv[0]),
+        reverse=True,
+    )
+
+
+def _render_evidence_section(evidence_items):
+    out = ["---", "", "## Evidence candidates - individual human review only", ""]
+    if not evidence_items:
+        return out + ["_No pending evidence candidates._", ""]
+    for it in evidence_items:
+        out.append(
+            f"- [{_box(it['checked'])}] **Evidence claim: {it['claim_id']}** "
+            f"\u00b7 project: {it['project']} "
+            f"{evidence_marker(it['claim_id'], it['source_fingerprint'])}"
+        )
+        if it["statement_preview"]:
+            out.append(f"    - statement_preview: {it['statement_preview']}")
+        out.append(f"    - evidence_links: {it['evidence_summary']}")
+        out.append(f"    - decision: {it['decision']}")
+        if it.get("superseded_by"):
+            out.append(f"    - superseded_by: {it['superseded_by']}")
+        out.append("")
+    return out
+
+
 # --- rendering --------------------------------------------------------------
 
-def render_queue(items, *, approve_all=False):
+def render_queue(items, *, evidence_items=(), approve_all=False):
     """Render the full Approvals.md text. `items` is an ordered list of dicts:
     {sid, project, created, confidence, fields:{field:str}, checked:bool}."""
     out = [APPROVALS_MARKER, "", "# Approvals — pending session writebacks", "",
            _INSTRUCTIONS, "",
-           f"- [{_box(approve_all)}] **APPROVE ALL** pending items below", "", "---", ""]
+           f"- [{_box(approve_all)}] **APPROVE ALL** pending session writebacks below", "", "---", ""]
     if not items:
         out += ["_No pending writebacks._", ""]
-        return "\n".join(out)
+        return "\n".join(out + _render_evidence_section(evidence_items))
     for it in items:
         head = f"- [{_box(it['checked'])}] **{it['project']}**"
         if it.get("created"):
@@ -157,7 +238,7 @@ def render_queue(items, *, approve_all=False):
             if v:
                 out.append(f"    - {field}: {v}")
         out.append("")
-    return "\n".join(out)
+    return "\n".join(out + _render_evidence_section(evidence_items))
 
 
 # --- parsing ----------------------------------------------------------------
@@ -168,28 +249,55 @@ def parse_queue(text):
     Tolerant of edits — unknown lines are ignored; field values may be empty."""
     approve_all = False
     items = {}
+    evidence_items = {}
     cur = None
+    cur_kind = None
     for line in text.splitlines():
         s = line.strip()
         cb = _CHECKBOX_RE.match(s)
         if cb:
             checked = cb.group(1).lower() == "x"
             rest = cb.group(2)
-            if "APPROVE ALL" in rest:
-                approve_all, cur = checked, None
+            if _APPROVE_ALL_RE.fullmatch(rest):
+                approve_all, cur, cur_kind = checked, None, None
                 continue
             m = _DRAFT_RE.search(rest)
             if m:
                 cur = m.group(1).strip()
                 items[cur] = {"checked": checked, "fields": {}}
+                cur_kind = "session"
             else:
-                cur = None
+                em = _EVIDENCE_RE.search(rest)
+                if em:
+                    cur = em.group(1).strip()
+                    evidence_items[cur] = {
+                        "checked": checked,
+                        "source_fingerprint": em.group(2),
+                        "decision": "pending",
+                    }
+                    cur_kind = "evidence"
+                else:
+                    cur, cur_kind = None, None
             continue
-        if cur is not None:
+        if cur is not None and cur_kind == "session":
             fm = _FIELD_RE.match(s)
             if fm and fm.group(1) in HIGH_VALUE_FIELDS:
                 items[cur]["fields"][fm.group(1)] = fm.group(2).strip()
-    return {"approve_all": approve_all, "items": items}
+        elif cur is not None and cur_kind == "evidence":
+            fm = _FIELD_RE.match(s)
+            if fm and fm.group(1) in EVIDENCE_FIELDS:
+                value = fm.group(2).strip()
+                if fm.group(1) == "decision":
+                    evidence_items[cur]["decision"] = (
+                        value if value in EVIDENCE_DECISIONS else "pending"
+                    )
+                elif value:
+                    evidence_items[cur]["superseded_by"] = value
+    return {
+        "approve_all": approve_all,
+        "items": items,
+        "evidence_items": evidence_items,
+    }
 
 
 # --- generate / regenerate --------------------------------------------------
@@ -202,8 +310,9 @@ def regenerate(vault, root=None, *, run=False):
     root = root or C.data_root()
     path = approvals_path(vault)
     pending = _pending_drafts(root)
+    pending_evidence = _pending_evidence(root)
 
-    prior = {"approve_all": False, "items": {}}
+    prior = {"approve_all": False, "items": {}, "evidence_items": {}}
     if path.exists():
         text_before = path.read_text(encoding="utf-8-sig")
         if APPROVALS_MARKER not in text_before:
@@ -221,10 +330,41 @@ def regenerate(vault, root=None, *, run=False):
                        "created": C.to_date(d.get("created")) or "",
                        "confidence": d.get("confidence"), "fields": fields, "checked": checked})
 
-    text = render_queue(merged, approve_all=prior["approve_all"])
+    merged_evidence = []
+    for claim_id, record in _sorted_evidence_items(pending_evidence):
+        source_fingerprint = record["source_fingerprint"]
+        old = prior["evidence_items"].get(claim_id)
+        if old and old["source_fingerprint"] == source_fingerprint:
+            checked = old["checked"]
+            decision = old["decision"]
+            superseded_by = old.get("superseded_by")
+        else:
+            checked, decision, superseded_by = False, "pending", None
+        item = {
+            "claim_id": claim_id,
+            "project": record["project"],
+            "statement_preview": _display_text(record["content"].get("statement")),
+            "evidence_summary": _evidence_summary(record["content"]),
+            "source_fingerprint": source_fingerprint,
+            "checked": checked,
+            "decision": decision,
+        }
+        if superseded_by:
+            item["superseded_by"] = superseded_by
+        merged_evidence.append(item)
+
+    text = render_queue(
+        merged,
+        evidence_items=merged_evidence,
+        approve_all=prior["approve_all"],
+    )
     plan = {"state": "written" if run else "would_write", "path": str(path),
             "pending": len(merged),
-            "dropped": sorted(set(prior["items"]) - set(pending))}
+            "evidence_pending": len(merged_evidence),
+            "dropped": sorted(set(prior["items"]) - set(pending)),
+            "dropped_evidence": sorted(
+                set(prior["evidence_items"]) - set(pending_evidence)
+            )}
     if run:
         path.parent.mkdir(parents=True, exist_ok=True)
         PL._atomic_write(path, text.encode("utf-8"))

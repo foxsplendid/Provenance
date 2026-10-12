@@ -168,14 +168,48 @@ The trust envelope is part of the public output:
 
 Neither the CLI nor the MCP method mutates project or memory state.
 
-### 6.3 Reserved future contracts
+### 6.3 Experiment evidence candidate registry
 
-Provenance 0.18.0 does not consume `experiment-run/1.0` or
-`claim-evidence/1.0`. Publishing those formats in scriptorium-spec is a
-prerequisite, not an implementation in Provenance: a later Provenance release
-must still add explicit validation, trust semantics and tests. In 0.18.0,
-`prov-ingest-research` rejects them as unsupported schema versions; no
-documentation or Context Capsule output may imply otherwise.
+`prov-ingest-evidence` consumes explicitly selected `experiment-run/1.x` and
+`claim-evidence/1.x` files. Its default operation is a zero-write preview;
+the CLI accepts `--run` only together with the matching preview `--plan-id`.
+It recomputes that same plan under the write lock before one atomic merge into
+the path-free, rebuildable `memory/evidence-registry.json`.
+
+The registry preserves additive fields and the actual minor version. A semantic
+SHA-256 source fingerprint is computed from the strict, validated input before
+privacy redaction, while only the redacted content is persisted. A second
+content fingerprint covers that persisted object. Every strict read recomputes
+the digest and reapplies the official local-path/secret sanitizer; a changed
+digest or non-idempotent privacy result fails closed before re-ingest. This
+prevents redaction collisions from hiding same-ID conflicts or terminal-run
+mutations and detects later private unknown-field injection. Duplicate JSON
+keys, NaN/Infinity, unsupported majors, broken run/Claim links, and corrupt
+registry state also fail closed.
+
+The content-free plan ID binds the strict input source-fingerprint set, the
+entire current registry state, aggregate counts, and the final record set. It
+changes even when a statement changes without changing counts, and it becomes
+invalid after any registry-state change. A CLI plan mismatch performs no
+registry write.
+
+Fingerprints are integrity and privacy-regression detectors, not signatures or
+authentication against a malicious writer with the same local user authority.
+The registry remains a rebuildable derived index rather than a fact master; the
+selected local contract files own their records.
+
+Every imported Claim is stored with `trust_state=untrusted-import` and
+`local_review_state=candidate`; a producer-supplied `accepted` value is retained
+only as audit data. Candidate ingestion verifies declared cross-file identities,
+not the physical artifact. A separate local human-promotion workflow must:
+
+1. resolve the project in the local portfolio;
+2. resolve the artifact inside the explicitly selected workspace;
+3. recompute and match its SHA-256;
+4. record the human decision before producing a reviewed Claim.
+
+Until that promotion workflow completes, neither Context Capsule nor another
+consumer may present the candidate as an authoritative project fact.
 
 ## 7. Event/sync state machine
 

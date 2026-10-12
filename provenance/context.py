@@ -13,10 +13,10 @@ import json
 import re
 import sys
 
-from provenance import __version__, memory as M, redact
+from provenance import __version__, evidence_review as ER, memory as M, redact
 
 
-CAPSULE_VERSION = "context-capsule/0.1"
+CAPSULE_VERSION = "context-capsule/0.2"
 MAX_MARKDOWN_CHARS = 8000
 MAX_JSON_BYTES = 20000
 # Kept as a compatibility alias for callers that imported the old name.
@@ -31,6 +31,10 @@ _MAX_LITERATURE = 6
 _MAX_ARTIFACTS = 8
 _MAX_SOURCE_IDS = 6
 _MAX_REFERENCE_LEADS = 6
+_MAX_EXPERIMENT_RUNS = 6
+_MAX_RUN_METRICS = 8
+_MAX_REVIEWED_CLAIMS = 6
+_MAX_EVIDENCE_REFS = 8
 
 _BEGIN = "<!-- scriptorium:progress-log:begin -->"
 _END = "<!-- scriptorium:progress-log:end -->"

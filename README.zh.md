@@ -33,6 +33,9 @@ Provenance 是 Scriptorium 套件中可独立部署的产品。它通过版本�
 - 通过标准库实现的只读 JSON-RPC/MCP 服务向 Agent 提供研究上下文。
 - 通过带锁的原子合并摄取经过验证的 `parsed-paper/1.0`、
   `reading-note/1.0`、`review/1.0` 与 `lineage-graph/1.0` 工件。
+- 以零写预览或显式执行方式摄取 `experiment-run/1.x` 与
+  `claim-evidence/1.x`；无论生产者声明什么审核状态，导入的 Claim
+  都只是本地未信任候选。
 - 生成有长度上限的 Context Capsule，明确区分已批准项目状态、自动写入的
   低风险进度，以及仅供参考的文献线索。
 - 将会话收尾事件写入本地队列，并通过可恢复、带锁的状态机推进。
@@ -145,6 +148,43 @@ Windows 重解析点都会被拒绝，读写前后还会核对文件身份，
 Capsule 中的文献提示在研究者核对证据并批准
 论断前始终只是参考线索。
 
+### 实验与证据候选
+
+```powershell
+# 默认只校验并输出计数和 plan_id，不写入
+$EvidencePreview = uv run --locked prov-ingest-evidence `
+  C:\ScriptoriumDemo\workspace\Evidence\Runs `
+  C:\ScriptoriumDemo\workspace\Evidence\Claims\pending `
+  --json | ConvertFrom-Json
+
+# 只授权该输入、registry 状态与结果完全一致的计划
+uv run --locked prov-ingest-evidence `
+  C:\ScriptoriumDemo\workspace\Evidence\Runs `
+  C:\ScriptoriumDemo\workspace\Evidence\Claims\pending `
+  --run --plan-id $EvidencePreview.plan_id --json
+```
+
+系统在隐私脱敏前计算语义 source fingerprint，避免两个不同来源因脱敏结果
+相同而掩盖稳定 ID 冲突或终态实验变更；另用 content fingerprint 保护实际持久化的
+脱敏对象。严格读取会再次应用官方路径/凭据 sanitizer，并要求结构保持完全一致。
+重复 JSON 键、非有限 JSON 常量、不支持的主版本、断裂的证据链接、隐私回退和
+损坏的既有 registry 都会被拒绝。
+
+预览输出不含研究内容的 `plan_id`，绑定严格输入 source fingerprint 集、当前
+registry 状态、计数和最终记录集。CLI 写入必须提供 `--run --plan-id ID`；
+系统会在写锁内用同一 planner 重算，任何不一致都不会改动 registry。报告只含模式、
+汇总计数和 plan ID。
+
+这些 fingerprint 用于发现意外损坏和隐私边界篡改，并不是针对同一用户权限下
+恶意进程的数字签名或身份认证。registry 始终是可重建派生索引，不是事实真源；
+用户选择的本地契约文件仍是 master。
+
+摄取不等于批准。摄取阶段只核对 Claim 与 experiment-run 中声明的项目、
+artifact ID、SHA-256 摘要和 locator；它不会打开或执行 `code_ref`、自动发现工件，
+也不会信任生产者写入的 `accepted`。本地晋升流程必须确认项目已在 portfolio
+中解析，从用户明确选择的工作区打开真实工件并重算 SHA-256，再取得人工决定，
+之后才能写入 reviewed Claim。
+
 ### 只读 MCP
 
 ```powershell
@@ -198,6 +238,7 @@ uv run --locked prov-sync-fill <summary-id> --provenance-home $env:PROVENANCE_HO
 | `prov-ingest-agents` | 摄取受支持的本地编程 Agent 日志 |
 | `prov-ingest-library` | 摄取 `library-kb/1.x` 快照 |
 | `prov-ingest-research` | 原子摄取显式选择的文献阅读工件 |
+| `prov-ingest-evidence` | 预览或显式摄取未信任的实验/Claim 契约 |
 | `prov-ingest-vault` | 摄取项目 frontmatter |
 | `prov-ingest-notes` | 将私人 Markdown 区域摄取进受保护状态 |
 | `prov-scrub` | 对既有记录重跑当前隐私转换 |

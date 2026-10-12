@@ -40,6 +40,9 @@ the extension.
 - Exposes read-only research context through a stdlib JSON-RPC/MCP server.
 - Ingests validated `parsed-paper/1.0`, `reading-note/1.0`, `review/1.0`, and
   `lineage-graph/1.0` artifacts through an atomic, lock-protected local merge.
+- Previews and explicitly ingests `experiment-run/1.x` plus
+  `claim-evidence/1.x` as a path-free derived registry. Every imported Claim
+  remains a locally untrusted candidate regardless of its producer review state.
 - Builds a bounded Context Capsule that separates approved project state,
   auto-applied low-risk progress, and reference-only literature leads.
 - Captures session-closeout events into a local queue and advances them through a
@@ -162,6 +165,48 @@ writes, and redacts absolute local paths including
 `file:` URIs while keeping read/write failures path-free. Capsule literature hints remain reference-only until
 the researcher reviews evidence and approves a claim.
 
+### Experiment evidence candidates
+
+```powershell
+# Default: validate and preview counts plus a plan_id without writing
+$EvidencePreview = uv run --locked prov-ingest-evidence `
+  C:\ScriptoriumDemo\workspace\Evidence\Runs `
+  C:\ScriptoriumDemo\workspace\Evidence\Claims\pending `
+  --json | ConvertFrom-Json
+
+# Authorize only that exact input + registry-state + result plan
+uv run --locked prov-ingest-evidence `
+  C:\ScriptoriumDemo\workspace\Evidence\Runs `
+  C:\ScriptoriumDemo\workspace\Evidence\Claims\pending `
+  --run --plan-id $EvidencePreview.plan_id --json
+```
+
+The registry records a semantic source fingerprint before applying privacy
+redaction, so redacted values cannot hide a conflicting stable ID or a terminal
+run mutation. A separate content fingerprint covers the persisted redacted
+object, and strict reads reapply the official path/secret sanitizer and require
+the result to remain structurally identical. It rejects duplicate JSON keys,
+non-finite JSON constants, unsupported major versions, broken evidence links,
+privacy regressions, and corrupt existing state.
+
+Preview prints a content-free `plan_id` that binds the strict input source
+fingerprints, current registry state, counts, and final record set. CLI writes
+require `--run --plan-id ID`; the same planner is recomputed under the write lock
+and any mismatch fails before the registry changes. Reports contain only mode,
+aggregate counts, and the plan ID.
+
+These fingerprints detect accidental corruption and privacy-boundary tampering;
+they are not signatures or authentication against a malicious process running as
+the same user. The registry is a rebuildable derived index, never the fact
+source. The selected local contract files remain the masters.
+
+Ingest is intentionally not approval. It verifies the Claim against the
+experiment-run's declared project, artifact ID, digest, and locator, but it does
+not open or execute `code_ref`, discover an artifact, or trust a producer's
+`accepted` state. The local promotion workflow must resolve the registered
+portfolio project, open the explicitly selected workspace artifact, recompute
+its SHA-256, and obtain the human decision before writing a reviewed Claim.
+
 ### Read-only MCP
 
 ```powershell
@@ -216,6 +261,7 @@ mapping. See [the wiring runbook](docs/sync-layer-wiring.md).
 | `prov-ingest-agents` | Import supported local coding-agent logs |
 | `prov-ingest-library` | Import a `library-kb/1.x` snapshot |
 | `prov-ingest-research` | Atomically ingest explicit literature-reading artifacts |
+| `prov-ingest-evidence` | Preview or explicitly ingest untrusted run/Claim contracts |
 | `prov-ingest-vault` | Import project frontmatter |
 | `prov-ingest-notes` | Import private Markdown zones into protected state |
 | `prov-scrub` | Re-apply the current privacy transform |

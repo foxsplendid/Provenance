@@ -35,6 +35,11 @@ def pull_lock_file(root=None):
     """Whole-pipeline lock for the public on-demand pull entrypoint."""
     return sync_state(root) / "pull.lock"
 
+def evidence_review_receipts_dir(root=None):
+    """Protected append-only receipts for local human evidence decisions."""
+    return sync_state(root) / "evidence-review-receipts"
+
+
 
 def pending_dir(root=None):
     """Per-summary scaffold + PROMPT + the component-accepted fill."""

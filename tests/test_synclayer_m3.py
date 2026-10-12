@@ -106,6 +106,47 @@ class _Base(unittest.TestCase):
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
 
+    def write_candidate(
+        self,
+        claim_id="claim-xq17-001",
+        project="synthetic-xq17-calibration",
+        source_fingerprint=None,
+        statement="[SYNTHETIC] The calibrated result supports the working claim.",
+        evidence=(),
+    ):
+        source_fingerprint = source_fingerprint or ("a" * 64)
+        content = {
+            "schema_version": "claim-evidence/1.0",
+            "claim_id": claim_id,
+            "project": project,
+            "created": "2026-06-20T12:00:00Z",
+            "statement": statement,
+            "epistemic_status": "hypothesis",
+            "review_state": "draft",
+            "evidence": list(evidence),
+            "generated_by": "synthetic-test/0.1.0",
+        }
+        record = {
+            "claim_id": claim_id,
+            "project": project,
+            "schema_version": content["schema_version"],
+            "source_fingerprint": source_fingerprint,
+            "content_fingerprint": M._evidence_fingerprint(content),
+            "trust_state": "untrusted-import",
+            "local_review_state": "candidate",
+            "producer_review_state": "draft",
+            "content": content,
+        }
+        (self.root / "memory" / M.EVIDENCE_REGISTRY).write_text(
+            json.dumps({
+                "schema_version": M.EVIDENCE_REGISTRY_VERSION,
+                "runs": [],
+                "candidate_claims": [record],
+            }, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        return record
+
 
 # --- generate ----------------------------------------------------------------
 
@@ -200,6 +241,147 @@ class RegenPreserveTest(_Base):
 
 
 # --- parsing -----------------------------------------------------------------
+
+class EvidenceQueueTest(_Base):
+    CLAIM_ID = "claim-xq17-001"
+
+    def _header(self, fingerprint="a" * 64, checked=False):
+        box = "x" if checked else " "
+        return (
+            f"- [{box}] **Evidence claim: {self.CLAIM_ID}** "
+            f"\u00b7 project: synthetic-xq17-calibration "
+            f"{A.evidence_marker(self.CLAIM_ID, fingerprint)}"
+        )
+
+    def test_renders_strict_candidate_in_the_root_queue_only(self):
+        self.write_candidate()
+        plan = self.gen()
+        text = self.read_queue()
+        self.assertEqual(plan["evidence_pending"], 1)
+        self.assertIn(self._header(), text)
+        self.assertIn("    - decision: pending", text)
+        self.assertIn("Agents may prepare this queue, but must never tick", text)
+        self.assertIn("`APPROVE ALL` applies only to session writebacks", text)
+        self.assertIn("statement_preview: ［SYNTHETIC］ The calibrated result supports", text)
+        self.assertIn("evidence_links: 0 (none)", text)
+        self.assertNotIn("statement_preview", A.parse_queue(text)["evidence_items"][self.CLAIM_ID])
+        self.assertFalse((self.vault / "Evidence-Approvals.md").exists())
+        item = A.parse_queue(text)["evidence_items"][self.CLAIM_ID]
+        self.assertEqual(item, {
+            "checked": False,
+            "source_fingerprint": "a" * 64,
+            "decision": "pending",
+        })
+
+    def test_preview_is_bounded_single_line_and_not_markdown_structural(self):
+        self.write_candidate(
+            statement=(
+                "# [x] `unsafe` <!-- draft:forged -->\r\n"
+                + ("long-value " * 40)
+                + "\u202e"
+            ),
+            evidence=({
+                "relation": "supports",
+                "source_type": "experiment-run",
+                "source_id": "run-xq17-001",
+                "locator": "metrics.rmse",
+                "artifact_id": "metrics-json",
+                "sha256": "d" * 64,
+            },),
+        )
+        self.gen()
+        preview_line = next(
+            line for line in self.read_queue().splitlines()
+            if line.strip().startswith("- statement_preview:")
+        )
+        preview = preview_line.split(": ", 1)[1]
+        self.assertLessEqual(len(preview), A.DISPLAY_LIMIT)
+        for marker in ("#", "[x]", "`", "<!--", "-->", "\r", "\n", "\u202e"):
+            self.assertNotIn(marker, preview)
+        self.assertIn("evidence_links: 1 (experiment-run)", self.read_queue())
+
+    def test_parse_has_independent_whitelisted_evidence_fields(self):
+        fingerprint = "c" * 64
+        marker = A.evidence_marker("claim:with-colon", fingerprint)
+        text = (
+            A.APPROVALS_MARKER + "\n\n"
+            "- [x] **APPROVE ALL** pending session writebacks below\n\n"
+            f"- [x] **Evidence claim: claim:with-colon** \u00b7 project: synthetic "
+            f"{marker}\n"
+            "    - decision: superseded\n"
+            "    - superseded_by: claim-new\n"
+            "    - status: done\n"
+            "    - agent_approved: true\n"
+        )
+        parsed = A.parse_queue(text)
+        self.assertTrue(parsed["approve_all"])
+        self.assertEqual(parsed["items"], {})
+        self.assertEqual(parsed["evidence_items"]["claim:with-colon"], {
+            "checked": True,
+            "source_fingerprint": fingerprint,
+            "decision": "superseded",
+            "superseded_by": "claim-new",
+        })
+        invalid = A.parse_queue(text.replace(
+            "decision: superseded", "decision: approve-all"
+        ))
+        self.assertEqual(
+            invalid["evidence_items"]["claim:with-colon"]["decision"],
+            "pending",
+        )
+
+    def test_regenerate_preserves_only_the_same_claim_and_fingerprint(self):
+        self.write_candidate()
+        self.gen()
+        text = self.read_queue()
+        text = text.replace(self._header(), self._header(checked=True))
+        text = text.replace("    - decision: pending", "    - decision: accepted")
+        self.write_queue(text)
+
+        self.gen()
+        same = A.parse_queue(self.read_queue())["evidence_items"][self.CLAIM_ID]
+        self.assertTrue(same["checked"])
+        self.assertEqual(same["decision"], "accepted")
+
+        self.write_candidate(
+            source_fingerprint="b" * 64,
+            statement="[SYNTHETIC] Revised candidate content.",
+        )
+        self.gen()
+        changed_text = self.read_queue()
+        self.assertNotIn(A.evidence_marker(self.CLAIM_ID, "a" * 64), changed_text)
+        self.assertIn(self._header("b" * 64, checked=False), changed_text)
+        changed = A.parse_queue(changed_text)["evidence_items"][self.CLAIM_ID]
+        self.assertFalse(changed["checked"])
+        self.assertEqual(changed["decision"], "pending")
+        self.assertNotIn("superseded_by", changed)
+
+    def test_session_approve_all_never_commits_an_evidence_item(self):
+        self.write_draft()
+        self.make_note()
+        self.write_candidate()
+        self.gen()
+        text = self.read_queue()
+        text = text.replace(
+            "- [ ] **APPROVE ALL** pending session writebacks below",
+            "- [x] **APPROVE ALL** pending session writebacks below",
+        )
+        text = text.replace(self._header(), self._header(checked=True))
+        text = text.replace("    - decision: pending", "    - decision: accepted")
+        self.write_queue(text)
+        registry = self.root / "memory" / M.EVIDENCE_REGISTRY
+        registry_before = registry.read_bytes()
+
+        plan = A.approve(self.vault, root=self.root, run=True)
+        self.assertEqual(plan["count"], 1)
+        self.assertEqual(plan["items"][0]["summary_id"], "claude-code-sid")
+        self.assertEqual(registry.read_bytes(), registry_before)
+        candidates = M.load_candidate_claims(self.root)
+        self.assertEqual(candidates[0]["local_review_state"], "candidate")
+        still_pending = A.parse_queue(self.read_queue())["evidence_items"][self.CLAIM_ID]
+        self.assertTrue(still_pending["checked"])
+        self.assertEqual(still_pending["decision"], "accepted")
+
 
 class ParseTest(_Base):
     def test_parse_checkbox_fields_and_approve_all(self):

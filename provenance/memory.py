@@ -12,24 +12,49 @@ sanitized snapshots live under `$PROVENANCE_HOME/memory/`:
     memory/library.json      reference library snapshot (literature)
     memory/projects.json     project portfolio (project/1.0 frontmatter)
     memory/research-artifacts.json  parsed papers, reading notes, reviews, lineage
+    memory/evidence-registry.json   derived experiment runs + untrusted claims
 
-Written by the library, vault and research-artifact ingesters; read by the
+Written by the library, vault, research-artifact and evidence ingesters; read by the
 read-only MCP tools, Context Capsule builder and search indexing.
 Stdlib only, no network — same privacy posture as the rest of the pipeline.
 
 Also home to a minimal YAML-frontmatter parser (a stdlib subset, NOT PyYAML) so
 the vault ingester stays zero-dependency.
 """
+import hashlib
 import json
 import re
 from pathlib import Path
 
 from provenance import common as C
+from provenance.redact import sanitize_json
 
 LIBRARY = "library.json"
 PROJECTS = "projects.json"
 APPLIED_CLAIMS = "applied_claims.json"   # sync-layer M3 approved high-value claims
 RESEARCH_ARTIFACTS = "research-artifacts.json"
+EVIDENCE_REGISTRY = "evidence-registry.json"
+EVIDENCE_REGISTRY_VERSION = "evidence-registry/1.0"
+_SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
+EVIDENCE_RUN_RECORD_FIELDS = frozenset({
+    "run_id",
+    "project",
+    "schema_version",
+    "source_fingerprint",
+    "content_fingerprint",
+    "content",
+})
+EVIDENCE_CLAIM_RECORD_FIELDS = frozenset({
+    "claim_id",
+    "project",
+    "schema_version",
+    "source_fingerprint",
+    "content_fingerprint",
+    "trust_state",
+    "local_review_state",
+    "producer_review_state",
+    "content",
+})
 
 # high-value claim fields an approved session-summary overlays onto a project record
 APPLIED_FIELDS = ("status", "stage", "next_actions", "conclusion", "blocked_by")
@@ -45,6 +70,131 @@ def _read(path):
         return json.loads(Path(path).read_text(encoding="utf-8"))
     except Exception:
         return {}
+
+
+class EvidenceRegistryError(RuntimeError):
+    """The derived evidence registry is present but unsafe or corrupt."""
+
+
+def _evidence_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise EvidenceRegistryError("evidence registry JSON has duplicate keys")
+        result[key] = value
+    return result
+
+
+def _reject_evidence_constant(_value):
+    raise EvidenceRegistryError("evidence registry JSON has a non-finite number")
+
+
+def _evidence_fingerprint(value):
+    canonical = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _validate_evidence_record(
+    record,
+    identity_field,
+    contract_format,
+    safe_io,
+    *,
+    claim=False,
+):
+    expected_fields = (
+        EVIDENCE_CLAIM_RECORD_FIELDS if claim else EVIDENCE_RUN_RECORD_FIELDS
+    )
+    if (
+        not isinstance(record, dict)
+        or set(record) != expected_fields
+        or not isinstance(record.get(identity_field), str)
+        or not record[identity_field]
+        or not isinstance(record.get("project"), str)
+        or not record["project"]
+        or not isinstance(record.get("schema_version"), str)
+        or not isinstance(record.get("content"), dict)
+        or not isinstance(record.get("source_fingerprint"), str)
+        or _SHA256_RE.fullmatch(record["source_fingerprint"]) is None
+        or not isinstance(record.get("content_fingerprint"), str)
+        or _SHA256_RE.fullmatch(record["content_fingerprint"]) is None
+    ):
+        raise EvidenceRegistryError("evidence registry has an invalid record")
+    content = record["content"]
+    if _evidence_fingerprint(content) != record["content_fingerprint"]:
+        raise EvidenceRegistryError("evidence registry content fingerprint does not match")
+    if sanitize_json(safe_io._redact_local_paths(content)) != content:
+        raise EvidenceRegistryError("evidence registry violates the privacy boundary")
+    if (
+        record["schema_version"] != content.get("schema_version")
+        or re.fullmatch(
+            re.escape(contract_format) + r"/1\.[0-9]+",
+            record["schema_version"],
+        )
+        is None
+        or record[identity_field] != content.get(identity_field)
+        or record["project"] != content.get("project")
+    ):
+        raise EvidenceRegistryError("evidence registry record identity is inconsistent")
+    if claim and (
+        record.get("trust_state") != "untrusted-import"
+        or record.get("local_review_state") != "candidate"
+        or record.get("producer_review_state") != content.get("review_state")
+    ):
+        raise EvidenceRegistryError("evidence registry violates the candidate boundary")
+
+
+def _read_evidence_registry(root=None):
+    """Read evidence state strictly; missing is empty, corruption is an error."""
+    path = mem_dir(root) / EVIDENCE_REGISTRY
+    try:
+        from provenance.ingest import research as safe_io
+
+        _, info = safe_io._safe_chain(path, allow_missing_tail=True)
+        if info is None:
+            return {"runs": [], "candidate_claims": []}
+        raw = safe_io._read_safe_bytes(path, expected=safe_io._file_snapshot(info))
+        document = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_evidence_object,
+            parse_constant=_reject_evidence_constant,
+        )
+    except EvidenceRegistryError:
+        raise
+    except Exception as exc:
+        raise EvidenceRegistryError("evidence registry is unreadable") from exc
+    if (
+        not isinstance(document, dict)
+        or document.get("schema_version") != EVIDENCE_REGISTRY_VERSION
+        or not isinstance(document.get("runs"), list)
+        or not isinstance(document.get("candidate_claims"), list)
+    ):
+        raise EvidenceRegistryError("evidence registry has an invalid shape")
+    seen_runs = set()
+    for record in document["runs"]:
+        _validate_evidence_record(record, "run_id", "experiment-run", safe_io)
+        if record["run_id"] in seen_runs:
+            raise EvidenceRegistryError("evidence registry has duplicate run IDs")
+        seen_runs.add(record["run_id"])
+    seen_claims = set()
+    for record in document["candidate_claims"]:
+        _validate_evidence_record(
+            record,
+            "claim_id",
+            "claim-evidence",
+            safe_io,
+            claim=True,
+        )
+        if record["claim_id"] in seen_claims:
+            raise EvidenceRegistryError("evidence registry has duplicate claim IDs")
+        seen_claims.add(record["claim_id"])
+    return document
 
 
 def load_library(root=None):
@@ -64,6 +214,36 @@ def load_research_artifacts(root=None):
     return artifacts if isinstance(artifacts, list) else []
 
 
+def load_experiment_runs(root=None):
+    """Return imported experiment observations from the derived evidence registry."""
+    return _read_evidence_registry(root)["runs"]
+
+
+def load_candidate_claims(root=None):
+    """Return imported, locally untrusted Claim candidates.
+
+    Producer-declared ``content.review_state`` is retained for audit, but every
+    returned record must still pass a separate local human-review workflow before
+    it can become an authoritative project fact.
+    """
+    return _read_evidence_registry(root)["candidate_claims"]
+
+
+
+def load_current_evidence_reviews(root=None, workspace=None):
+    """Return current human decisions validated against the workspace master."""
+    from provenance.evidence_review import load_current_reviews
+
+    return load_current_reviews(root=root, workspace=workspace)
+
+
+def load_reviewed_claims(root=None, workspace=None):
+    """Return only currently accepted reviewed Claim contract objects."""
+    return [
+        receipt["reviewed_claim"]
+        for receipt in load_current_evidence_reviews(root, workspace)
+        if receipt["decision"] == "accepted"
+    ]
 def load_applied_claims(root=None):
     """Return {project_id: approved high-value claims} (sync-layer M3 overlay).
 
